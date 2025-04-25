@@ -1,4 +1,42 @@
-# PyPhi実験環境セットアップガイド
+# PyPhi実験プロジェクト
+
+## 概要
+このプロジェクトは、統合情報理論（Integrated Information Theory, IIT）の計算ツールであるPyPhiを使用して、3ノードシステムのφ値（統合情報量）を計算する実験を行います。
+
+## 実験内容
+- 2ノードシステム（XORゲート）のφ値計算
+- 3ノードシステムのφ値計算
+- 異なる状態でのφ値の比較
+
+## 主な成果
+- TPM（遷移確率行列）の修正により、すべての状態でφ値が正しく計算できるようになりました
+- 状態 `(0, 1, 1)` と `(1, 1, 1)` のφ値が0であることを確認
+- システムの各状態において統合された情報が存在しないことを示唆
+
+## 今後の課題
+1. 他の状態（例：`(0, 0, 0)`、`(0, 0, 1)`など）のφ値の計算
+2. より複雑な相互作用を持つTPMの設計
+3. 非ゼロのφ値を持つ状態の作成
+
+## 環境設定
+- Python 3.x
+- PyPhi 1.2.0
+- NumPy 1.24.3
+
+## 使用方法
+```bash
+# 環境構築
+python -m venv pyphi_env
+source pyphi_env/bin/activate  # Windows: pyphi_env\Scripts\activate
+pip install -r requirements.txt
+
+# 実験実行
+python test_pyphi.py
+```
+
+## 参考リソース
+- [PyPhi公式ドキュメント](https://pyphi.readthedocs.io)
+- [PyPhiのGitHubリポジトリ](https://github.com/wmayner/pyphi)
 
 ## 環境要件
 - macOS
