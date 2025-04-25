@@ -1,100 +1,82 @@
-import pyphi
 import numpy as np
-import multiprocessing
+import pyphi
+import os
 
-def create_five_node_system():
-    # 5ノードのTPM - state-by-node form
-    # 各ノードは他の4つのノードからの入力を受け取る
-    # ノードの次の状態は、入力のXORとANDの組み合わせで決まる
-    # 32通りの状態（2^5）を定義
-    tpm = np.array([
-        [0, 0, 0, 0, 0],  # 00000 -> 00000 (全て0なら0のまま)
-        [1, 1, 0, 0, 1],  # 00001 -> 11001 (1つだけ1なら、隣接ノードが反転)
-        [1, 0, 1, 0, 0],  # 00010 -> 10100 (1つだけ1なら、隣接ノードが反転)
-        [0, 1, 1, 1, 1],  # 00011 -> 01111 (2つ1なら、残りが1に)
-        [1, 0, 0, 1, 0],  # 00100 -> 10010 (1つだけ1なら、隣接ノードが反転)
-        [0, 1, 1, 0, 1],  # 00101 -> 01101 (2つ1なら、中間が1に)
-        [1, 1, 1, 1, 0],  # 00110 -> 11110 (3つ1なら、残りが0に)
-        [0, 0, 0, 1, 1],  # 00111 -> 00011 (4つ1なら、端が1に)
-        [0, 1, 0, 0, 1],  # 01000 -> 01001 (1つだけ1なら、隣接ノードが反転)
-        [1, 1, 1, 1, 0],  # 01001 -> 11110 (3つ1なら、残りが0に)
-        [0, 0, 1, 1, 1],  # 01010 -> 00111 (2つ1なら、残りが1に)
-        [1, 0, 0, 0, 1],  # 01011 -> 10001 (4つ1なら、端が1に)
-        [1, 1, 0, 1, 0],  # 01100 -> 11010 (3つ1なら、残りが0に)
-        [0, 0, 1, 0, 1],  # 01101 -> 00101 (2つ1なら、中間が1に)
-        [1, 0, 1, 0, 0],  # 01110 -> 10100 (4つ1なら、端が0に)
-        [0, 1, 1, 1, 1],  # 01111 -> 01111 (全て1なら1のまま)
-        [1, 0, 0, 0, 1],  # 10000 -> 10001 (1つだけ1なら、隣接ノードが反転)
-        [0, 1, 1, 1, 0],  # 10001 -> 01110 (3つ1なら、残りが0に)
-        [0, 0, 1, 1, 1],  # 10010 -> 00111 (2つ1なら、残りが1に)
-        [1, 1, 0, 0, 1],  # 10011 -> 11001 (4つ1なら、端が1に)
-        [0, 1, 1, 0, 1],  # 10100 -> 01101 (3つ1なら、残りが0に)
-        [1, 0, 0, 1, 0],  # 10101 -> 10010 (2つ1なら、中間が1に)
-        [0, 1, 0, 0, 1],  # 10110 -> 01001 (4つ1なら、端が0に)
-        [1, 1, 1, 1, 1],  # 10111 -> 11111 (全て1なら1のまま)
-        [0, 1, 0, 0, 1],  # 11000 -> 01001 (1つだけ1なら、隣接ノードが反転)
-        [1, 1, 1, 0, 0],  # 11001 -> 11100 (3つ1なら、残りが0に)
-        [0, 0, 1, 1, 1],  # 11010 -> 00111 (2つ1なら、残りが1に)
-        [1, 0, 0, 1, 0],  # 11011 -> 10010 (4つ1なら、端が1に)
-        [1, 1, 0, 1, 0],  # 11100 -> 11010 (3つ1なら、残りが0に)
-        [0, 0, 1, 0, 1],  # 11101 -> 00101 (2つ1なら、中間が1に)
-        [1, 0, 1, 0, 0],  # 11110 -> 10100 (4つ1なら、端が0に)
-        [0, 0, 0, 0, 0],  # 11111 -> 00000 (全て1なら0に)
-    ])
+# PyPhiのウェルカムメッセージを抑制
+os.environ['PYPHI_WELCOME_OFF'] = 'yes'
 
-    # TPMを3次元に変換
-    tpm = pyphi.convert.state_by_node2state_by_state(tpm)
+class FiveNodeSystem:
+    def __init__(self):
+        # TPMの初期化
+        self.tpm = np.zeros((32, 5))  # state-by-node形式
+        self._initialize_tpm()
+        self.network = self._create_network()
 
-    # 5ノードの接続行列 - 全結合
-    cm = np.array([
-        [1, 1, 1, 1, 1],  # ノード0は全てのノードから入力を受ける
-        [1, 1, 1, 1, 1],  # ノード1は全てのノードから入力を受ける
-        [1, 1, 1, 1, 1],  # ノード2は全てのノードから入力を受ける
-        [1, 1, 1, 1, 1],  # ノード3は全てのノードから入力を受ける
-        [1, 1, 1, 1, 1]   # ノード4は全てのノードから入力を受ける
-    ])
+    def _initialize_tpm(self):
+        # 非線形な状態遷移を実装
+        # 全ての可能な状態に対してTPMを定義
+        for i, state in enumerate(self._generate_all_states()):
+            next_state = self._compute_next_state(state)
+            self.tpm[i] = next_state
 
-    labels = ('A', 'B', 'C', 'D', 'E')
-    return pyphi.Network(tpm, cm=cm, node_labels=labels)
+    def _generate_all_states(self):
+        # 全ての可能な状態（2^5 = 32通り）を生成
+        return [(i >> 4 & 1, i >> 3 & 1, i >> 2 & 1, i >> 1 & 1, i & 1) 
+                for i in range(32)]
 
-def calculate_phi_values(network):
-    # 代表的な状態でのφ値を計算
-    test_states = [
-        (0, 0, 0, 0, 0),  # 全て0
-        (0, 0, 0, 0, 1),  # 1つだけ1
-        (0, 0, 0, 1, 1),  # 2つ1
-        (0, 0, 1, 1, 1),  # 3つ1
-        (0, 1, 1, 1, 1),  # 4つ1
-        (1, 1, 1, 1, 1)   # 全て1
-    ]
+    def _compute_next_state(self, state):
+        # 非線形な状態遷移ルールを定義
+        n1, n2, n3, n4, n5 = state
+        
+        # より複雑な相互作用を実装
+        next_n1 = (n2 and n3) or (n4 and n5)  # ノード1は2&3または4&5が活性化している場合に活性化
+        next_n2 = n1 or (n3 and n4)           # ノード2は1が活性化しているか、3&4が活性化している場合に活性化
+        next_n3 = (n1 and n2) or n5           # ノード3は1&2または5が活性化している場合に活性化
+        next_n4 = n3 or (n1 and n5)           # ノード4は3が活性化しているか、1&5が活性化している場合に活性化
+        next_n5 = (n2 and n4) or n3           # ノード5は2&4または3が活性化している場合に活性化
+        
+        return np.array([next_n1, next_n2, next_n3, next_n4, next_n5])
 
-    print("\n5ノードシステムの異なる状態でのφ値:")
-    for s in test_states:
+    def _create_network(self):
         try:
-            subsystem = pyphi.Subsystem(network, s)
-            phi = pyphi.compute.phi(subsystem)
-            print(f"状態 {s}: φ = {phi}")
+            # ネットワークの作成
+            network = pyphi.Network(self.tpm)
+            return network
         except Exception as e:
-            print(f"状態 {s}のφ値計算中にエラー: {e}")
+            print(f"ネットワーク作成エラー: {e}")
+            raise
 
-def main():
-    print(f"PyPhi version: {pyphi.__version__}")
-    
-    try:
-        # 5ノードシステムの作成
-        network = create_five_node_system()
-        print("Network object created successfully:")
-        print(network)
+    def compute_phi(self, state):
+        try:
+            # 指定された状態のΦ値を計算
+            subsystem = pyphi.Subsystem(self.network, state)
+            return pyphi.compute.phi(subsystem)
+        except Exception as e:
+            print(f"Φ値計算エラー: {e}")
+            return 0.0  # エラー時は0を返す
 
-        # φ値の計算
-        calculate_phi_values(network)
+    def get_next_state(self, state):
+        try:
+            # 状態のインデックスを計算
+            index = sum(v * (2 ** (4-i)) for i, v in enumerate(state))
+            return tuple(self.tpm[index].astype(int))
+        except Exception as e:
+            print(f"次の状態計算エラー: {e}")
+            return state  # エラー時は現在の状態を返す
 
-        print("\n5ノードシステムの実験が正常に完了しました！")
-
-    except Exception as e:
-        print(f"\nエラーが発生しました: {e}")
-        print("インストールとコードを確認してください。")
-
+# テスト用のコード
 if __name__ == '__main__':
-    multiprocessing.freeze_support()
-    main() 
+    try:
+        system = FiveNodeSystem()
+        
+        # 特定の状態のΦ値を計算
+        test_states = [
+            (0, 1, 1, 1, 1),
+            (1, 1, 1, 1, 1)
+        ]
+        
+        for state in test_states:
+            phi = system.compute_phi(state)
+            print(f"State {state}: Φ = {phi}")
+    except Exception as e:
+        print(f"テストエラー: {e}") 
